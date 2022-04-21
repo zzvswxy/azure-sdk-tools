@@ -9,8 +9,6 @@ from apistub.nodes import PylintParser
 import os
 import tempfile
 
-from ._test_util import _check, _render_string, _tokenize
-
 
 class TestApiView:
     def _count_newlines(self, apiview):
@@ -55,3 +53,12 @@ class TestApiView:
         # The "needs copyright header" error corresponds to a file, which isn't directly
         # represented in APIView
         assert len(unclaimed) == 1
+
+    def test_add_type(self):
+        apiview = ApiView()
+        apiview.tokens = []
+        apiview.add_type(type_name="a.b.c.1.2.3.MyType")
+        tokens = apiview.tokens
+        assert len(tokens) == 2
+        assert tokens[0].kind == TokenKind.TypeName
+        assert tokens[1].kind == TokenKind.Punctuation
