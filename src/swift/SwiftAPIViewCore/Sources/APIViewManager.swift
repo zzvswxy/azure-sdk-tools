@@ -63,6 +63,8 @@ public class APIViewManager {
 
     // MARK: Properties
 
+    var apiview: APIViewModel?
+
     var config = APIViewConfiguration()
 
     var mode: APIViewManagerMode
@@ -71,30 +73,28 @@ public class APIViewManager {
 
     public init(mode: APIViewManagerMode = .commandLine) {
         self.mode = mode
+        self.apiview = nil
     }
 
     // MARK: Methods
 
-    public func run() throws -> String {
+    public func generate() throws {
         if mode == .commandLine {
             config.loadCommandLineArgs()
         }
         guard let sourceUrl = URL(string: config.sourcePath) else {
             SharedLogger.fail("usage error: source path was invalid.")
         }
-        let apiView = try createApiView(from: sourceUrl)
+        self.apiview = try createApiView(from: sourceUrl)
+    }
 
-        switch mode {
-        case .commandLine:
-            save(apiView: apiView)
-            return ""
-        case .testing:
-            return apiView.text
-        }
+    var text: String? {
+        return apiview?.text
     }
 
     /// Persist the token file to disk
-    func save(apiView: APIViewModel) {
+    func save() {
+        guard let apiview = apiview else { return }
         let destUrl: URL
         if let destPath = config.destPath {
             destUrl = URL(fileURLWithPath: destPath)
@@ -108,7 +108,7 @@ public class APIViewManager {
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = .prettyPrinted
-            let tokenData = try encoder.encode(apiView)
+            let tokenData = try encoder.encode(apiview)
             try tokenData.write(to: destUrl)
         } catch {
             SharedLogger.fail(error.localizedDescription)

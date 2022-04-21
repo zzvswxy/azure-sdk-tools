@@ -29,38 +29,22 @@ import XCTest
 
 class SwiftAPIViewCoreTests: XCTestCase {
 
+    let url = "/Users/travisprescott/repos/azure-sdk-tools/src/swift/SwiftAPIViewTests/Sources/AttributesTestFile.swift"
+
     override func setUpWithError() throws {
         SharedLogger.set(logger: NullLogger(), withLevel: .info)
     }
 
-    private func load(testFile filename: String) -> String {
-        let bundle = Bundle(for: Swift.type(of: self))
-        return bundle.path(forResource: filename, ofType: "swifttxt")!
-    }
-
-    private func load(expectFile filename: String) -> String {
-        let bundle = Bundle(for: Swift.type(of: self))
-        let path = bundle.path(forResource: filename, ofType: "txt")!
-        return try! String(contentsOfFile: path)
-    }
-
-    private func compare(expected: String, actual: String) {
-        let actualLines = actual.split(separator: "\n").map { String($0) }
-        let expectedLines = expected.split(separator: "\n").map { String($0) }
-        print(actual)
-        XCTAssertEqual(actualLines.count, expectedLines.count)
-        for (i, expected) in expectedLines.enumerated() {
-            let actual = actualLines[i]
-            XCTAssert(actual == expected, "Line \(i): (\(actual) is not equal to (\(expected)")
-        }
-    }
-
-    func testFile1() throws {
+    func getModel() -> APIViewModel {
         let manager = APIViewManager(mode: .testing)
-        manager.config.sourcePath = load(testFile: "TestFile1")
+        manager.config.sourcePath = url
         manager.config.packageVersion = "1.0.0"
-        let generated = try! manager.run()
-        let expected = load(expectFile: "ExpectFile1")
-        compare(expected: expected, actual: generated)
+        try! manager.generate()
+        return manager.apiview!
+    }
+
+    func test_Attributes_withAtObjc() {
+        let apiview = getModel()
+        let test = "best"
     }
 }
