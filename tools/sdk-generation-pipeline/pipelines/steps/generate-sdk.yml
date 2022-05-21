@@ -1,0 +1,73 @@
+parameters:
+  - name: readmeFile
+    type: string
+
+  - name: trigger
+    type: string
+
+steps:
+  - bash: |
+      publishResult \
+        --storageType=eventhub \
+        --pipelineStatus=in_progress
+      retVal=$?
+      if [ $retVal -ne 0 ]; then
+          echo "##vso[task.setvariable variable=pipelineResult;]failed"
+          exit 1
+      fi
+    displayName: publish status
+    env:
+      EVENTHUB_SAS_URL: $(EVENTHUB_SAS_URL)
+      PIPELINE_BUILDID: $(Build.BuildId)
+      TRIGGER: ${{ parameters.trigger }}
+
+  - bash: |
+      docker run \
+        -v $(SPEC_REPO):/spec-repo \
+        -v $(SDK_REPO):/sdk-repo \
+        -v /tmp/output:/tmp/output \
+        $(DOCKER_IMAGE) \
+        --readme=${{ parameters.readmeFile }}
+      retVal=$?
+      if [ $retVal -ne 0 ]; then
+          echo "##vso[task.setvariable variable=pipelineResult;]failed"
+      fi
+    displayName: generate sdk
+
+  - bash: |
+      #TODO: delete this bash
+      echo "check output dir"
+      ls /tmp/output
+      echo "show docker.log"
+      head -n 30 /tmp/output/docker.log
+      echo "*****"
+      tail -n 30 /tmp/output/docker.log
+      echo "show generate-and-build-task.log"
+      head -n 30 /tmp/output/generate-and-build-task.log
+      echo "*****"
+      tail -n 30 /tmp/output/generate-and-build-task.log
+      echo "show generateAndBuildInput.json"
+      cat /tmp/output/generateAndBuildInput.json
+      echo "show generateAndBuildOutputJson.json"
+      cat /tmp/output/generateAndBuildOutputJson.json
+      echo "show init-task.log"
+      head -n 30 /tmp/output/init-task.log
+      echo "*****"
+      tail -n 30 /tmp/output/init-task.log
+      echo "show taskResults.json"
+      cat /tmp/output/taskResults.json
+
+      echo "show mock-host.log"
+      head -n 30 /tmp/output/mock-host.log | echo "don't quite even failed"
+      echo "*****"
+      tail -n 30 /tmp/output/mock-host.log | echo "don't quite even failed"
+
+      echo "show mock-test-task.log"
+      head -n 30 /tmp/output/mock-test-task.log | echo "don't quite even failed"
+      echo "*****"
+      tail -n 30 /tmp/output/mock-test-task.log | echo "don't quite even failed"
+
+      echo "show mockTestOutput.json"
+      cat /tmp/output/mockTestOutput.json | echo "don't quite even failed"
+    displayName: Check output dir
+    condition: always()
