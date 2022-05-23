@@ -15,85 +15,54 @@ parameters:
     type: string
 steps:
   - bash: |
-      echo "will parse init result"
-      generateResult
-      retVal=$?
-      if [ $retVal -ne 0 ]; then
-          echo "##vso[task.setvariable variable=pipelineResult;]failed"
-      fi
-    displayName: Parse init result
-    env:
-      PIPELINE_BUILDID: $(Build.BuildId)
-      LOG_FILE: /tmp/output/init-task.log
-      TASK_NAME: init
-      RESULT_OUTPUT_PATH: /tmp/output/init-task-result.json
-      DOCKER_RESULT_FILE: /tmp/output/taskResults.json
+      echo "will parse task result"
+      LOG_Dir="/tmp/output/"
+      for TASK_NAME in "init" "generateAndBuild" "mockTest"
+      do
+        if [ ${TASK_NAME} = "mockTest" ]; then
+          TASK_OUTPUT_PATH="/tmp/output/mockTestOutput.json"
+        fi
+
+        generateResult \
+          --buildId=$(Build.BuildId) \
+          --taskName=${TASK_NAME} \
+          --logfile="/tmp/output/${TASK_NAME}-task.log" \
+          --resultOutputPath="/tmp/output/${TASK_NAME}-task-result.json" \
+          --dockerResultFile="/tmp/output/taskResults.json" \
+          --taskOutputPath="${TASK_OUTPUT_PATH}"
+        retVal=$?
+        if [ $retVal -ne 0 ]; then
+            #TODO: set pipelineResult for parse task result
+            echo "wait all language support mock test"
+            #echo "##vso[task.setvariable variable=pipelineResult;]failed"
+        fi
+      done
+    displayName: Parse task result
     condition: or(contains(variables['pipelineResult'], 'success'), contains(variables['pipelineResult'], 'failed'))
 
   - bash: |
-      echo "will parse generateAndBuild result"
-      generateResult
+      prepareArtifactFiles \
+        --artifactDir="$(System.ArtifactsDirectory)" \
+        --generateAndBuildOutputFile="/tmp/output/generateAndBuildOutputJson.json" \
+        --language="${{ parameters.sdk }}"
       retVal=$?
       if [ $retVal -ne 0 ]; then
           echo "##vso[task.setvariable variable=pipelineResult;]failed"
-      fi
-    displayName: Parse generateAndBuild result
-    env:
-      PIPELINE_BUILDID: $(Build.BuildId)
-      LOG_FILE: /tmp/output/generate-and-build-task.log
-      TASK_NAME: generateAndBuild
-      RESULT_OUTPUT_PATH: /tmp/output/generate-and-build-task-result.json
-      DOCKER_RESULT_FILE: /tmp/output/taskResults.json
-    condition: or(contains(variables['pipelineResult'], 'success'), contains(variables['pipelineResult'], 'failed'))
-
-  - bash: |
-      echo "will parse mock test result"
-      generateResult
-      retVal=$?
-      if [ $retVal -ne 0 ]; then
-          #TODO:wait all language support mock test and enable the check
-          echo "wait all language support mock test"
-          #echo "##vso[task.setvariable variable=pipelineResult;]failed"
-      fi
-
-      #TODO: delete next lines
-      ls /tmp/output
-      cat /tmp/output/init-task-result.json
-      cat /tmp/output/generate-and-build-task-result.json
-      cat /tmp/output/mock-test-task-result.json | echo "do not failed here"
-    displayName: Parse mock test result
-    env:
-      PIPELINE_BUILDID: $(Build.BuildId)
-      LOG_FILE: /tmp/output/mock-test-task.log
-      TASK_NAME: mockTest
-      RESULT_OUTPUT_PATH: /tmp/output/mock-test-task-result.json
-      DOCKER_RESULT_FILE: /tmp/output/taskResults.json
-      TASK_OUTPUT_PATH: /tmp/output/mockTestOutput.json
-    condition: or(contains(variables['pipelineResult'], 'success'), contains(variables['pipelineResult'], 'failed'))
-
-  - bash: |
-      getArtifactFiles
-      retVal=$?
-      if [ $retVal -ne 0 ]; then
-          echo "##vso[task.setvariable variable=pipelineResult;]failed"
+          exit 1
       fi
       cp /tmp/output/docker.log $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-full.log
       cp /tmp/output/init-task.log $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-init.log
       cp /tmp/output/init-task-result.json $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-init-result.json
-      cp /tmp/output/generate-and-build-task.log $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-generateAndBuild.log
-      cp /tmp/output/generate-and-build-task-result.json $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-generateAndBuild-result.json
-      cp /tmp/output/mock-test-task.log $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-mockTest.log | echo "wait all language support mock test"
-      cp /tmp/output/mock-test-task-result.json $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-mockTest-result.json | echo "wait all language support mock test"
-    env:
-      GENERATE_AND_BUILD_OUTPUTFILE: /tmp/output/generateAndBuildOutputJson.json
-      ARTIFACT_DIR: $(System.ArtifactsDirectory)
-      LANGUAGE: ${{ parameters.sdk }}
-    displayName: prepare artifact
+      cp /tmp/output/generateAndBuild-task.log $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-generateAndBuild.log
+      cp /tmp/output/generateAndBuild-task-result.json $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-generateAndBuild-result.json
+      cp /tmp/output/mockTest-task.log $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-mockTest.log | echo "wait all language support mock test"
+      cp /tmp/output/mockTest-task-result.json $(System.ArtifactsDirectory)/logs/${{ parameters.sdkGenerationName }}-mockTest-result.json | echo "wait all language support mock test"
+    displayName: Prepare artifact
     workingDirectory: $(SDK_REPO)
     condition: contains(variables['pipelineResult'], 'success')
 
   - task: PublishPipelineArtifact@1
-    displayName: publish SDK Generation pipeline artifact
+    displayName: Publish SDK Generation pipeline artifact
     inputs:
       targetPath: $(System.ArtifactsDirectory)/
       artifactName: sdk-generation
@@ -102,21 +71,21 @@ steps:
   - bash: |
       publishResult \
         --storageType=eventhub \
-        --pipelineStatus=completed
+        --pipelineStatus=completed \
+        --buildId="$(Build.BuildId)" \
+        --trigger='${{ parameters.trigger }}' \
+        --logPath=$(Build.BuildId)/logs \
+        --resultsPath='["/tmp/output/init-task-result.json",
+          "/tmp/output/generateAndBuild-task-result.json",
+          "/tmp/output/mockTest-task-result.json"]'
       retVal=$?
       if [ $retVal -ne 0 ]; then
           echo "##vso[task.setvariable variable=pipelineResult;]failed"
           exit 1
       fi
-    displayName: publish status
+    displayName: Publish status
     env:
       EVENTHUB_SAS_URL: $(EVENTHUB_SAS_URL)
-      PIPELINE_BUILDID: $(Build.BuildId)
-      TRIGGER: ${{ parameters.trigger }}
-      LOG_PATH: $(Build.BuildId)/logs
-      RESULTS_PATH: '["/tmp/output/init-task-result.json",
-        "/tmp/output/generate-and-build-task-result.json",
-        "/tmp/output/mock-test-task-result.json"]'
     condition: always()
 
   - bash: |
@@ -130,26 +99,38 @@ steps:
       echo "will create PR"
       git config --global user.email "no-reply@azure-sdk.com"
       git config --global user.name "$(REPO_OWNER)"
-      git commit -m '[auto]create by sdk generation'
-      branchName=sdkGen/${{ parameters.sdkGenerationName }}/-${{ parameters.service }}
-      if [ "${{ parameters.serviceType }}" = "resource-manager" ];then
-        branchName=sdkGen/${{ parameters.sdkGenerationName }}/arm-${{ parameters.service }}
-      else
-        branchName=sdkGen/${{ parameters.sdkGenerationName }}/dpg-${{ parameters.service }}
-      fi
-      git checkout -b ${branchName}
-      pushSdkRepoUrl=$(echo $(sdkRepoUrl) | sed "s#https://#https://$(REPO_OWNER):$(REPO_OWNER_ACCESSKEY)@#")
-      pushSdkRepoUrl=$(echo ${pushSdkRepoUrl} | sed "s#Azure#$(REPO_OWNER)#")
-      git push ${pushSdkRepoUrl}
-      sdkRepoPullsApi=$(echo $(sdkRepoUrl) | sed "s#https://#https://api.#")
-      sdkRepoPullsApi=$(echo ${sdkRepoPullsApi} | sed "s#Azure#repos/$(REPO_OWNER)#")
-      sdkRepoPullsApi=$(echo ${sdkRepoPullsApi} | sed "s#.git\$#/pulls#")
-      curl \
-        -u "$(REPO_OWNER)":"$(REPO_OWNER_ACCESSKEY)" \
-        -H "Accept: application/vnd.github.v3+json" \
-        -X POST \
-        -d '{"title":"[AutoPR-${{ parameters.service }}]autogenerated","body":"","base":"main", "head":"'$(REPO_OWNER)':'${branchName}'"}' \
-        ${sdkRepoPullsApi}
+
+      packages=`cat /tmp/output/generateAndBuildOutputJson.json| jq -c '.packages|.[]'`
+      for package in ${packages}
+      do
+        packageName=`echo ${package} | jq -r '.packageName'`
+        paths=`echo ${package} | jq -r '.path|.[]'`
+        for path in ${paths}
+        do
+            git add ${path}
+        done
+        git commit -m '[auto]create by sdk generation'
+        if [ "${{ parameters.serviceType }}" = "resource-manager" ];then
+          branchName=sdkGen/${{ parameters.sdkGenerationName }}/arm-${{ parameters.service }}-${packageName}
+        else
+          branchName=sdkGen/${{ parameters.sdkGenerationName }}/dpg-${{ parameters.service }}-${packageName}
+        fi
+        git checkout -b ${branchName}
+        pushSdkRepoUrl=$(echo $(sdkRepoUrl) | sed "s#https://#https://$(REPO_OWNER):$(REPO_OWNER_ACCESSKEY)@#")
+        pushSdkRepoUrl=$(echo ${pushSdkRepoUrl} | sed "s#Azure#$(REPO_OWNER)#")
+        git push ${pushSdkRepoUrl}
+        sdkRepoPullsApi=$(echo $(sdkRepoUrl) | sed "s#https://#https://api.#")
+        sdkRepoPullsApi=$(echo ${sdkRepoPullsApi} | sed "s#Azure#repos/$(REPO_OWNER)#")
+        sdkRepoPullsApi=$(echo ${sdkRepoPullsApi} | sed "s#.git\$#/pulls#")
+        curl \
+          -u "$(REPO_OWNER)":"$(REPO_OWNER_ACCESSKEY)" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -X POST \
+          -d '{"title":"[AutoPR-${{ parameters.service }}]autogenerated","body":"","base":"main", "head":"'$(REPO_OWNER)':'${branchName}'"}' \
+          ${sdkRepoPullsApi}
+
+        git reset HEAD~
+      done
     workingDirectory: $(SDK_REPO)
-    displayName: submit Pull Request
+    displayName: Submit Pull Request
     condition: contains(variables['pipelineResult'], 'success')

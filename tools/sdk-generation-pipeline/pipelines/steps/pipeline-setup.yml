@@ -33,7 +33,9 @@ steps:
       echo "##vso[task.setvariable variable=pipelineResult;]success"
       publishResult \
         --storageType=eventhub \
-        --pipelineStatus=queued
+        --pipelineStatus=queued \
+        --buildId="$(Build.BuildId)" \
+        --trigger='${{ parameters.trigger }}'
       retVal=$?
       if [ $retVal -ne 0 ]; then
           echo "##vso[task.setvariable variable=pipelineResult;]failed"
@@ -42,8 +44,6 @@ steps:
     displayName: Setup Pipeline Runtime Environment
     env:
       EVENTHUB_SAS_URL: $(EVENTHUB_SAS_URL)
-      PIPELINE_BUILDID: $(Build.BuildId)
-      TRIGGER: ${{ parameters.trigger }}
 
   - bash: |
       #TODO: will support clone specific PR and commit
@@ -52,5 +52,5 @@ steps:
       git clone --branch $(sdkRepoBaseBranch) ${downloadSdkRepoUrl}
       getRepoName SPEC_REPO $(specRepoUrl)
       getRepoName SDK_REPO $(sdkRepoUrl)
-    displayName: repo pull
+    displayName: Repo pull
     workingDirectory: ../

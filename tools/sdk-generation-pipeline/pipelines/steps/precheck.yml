@@ -25,29 +25,29 @@ steps:
         echo "##vso[task.setvariable variable=specRepoUrl;]${{ parameters.swagger.path }}"
         echo "##vso[task.setvariable variable=specRepoBranch;]${{ parameters.swagger.branch }}"
       fi
-    displayName: check parameters
+    displayName: Check parameters
 
   - ${{ if eq(parameters.sdk, 'js') }}:
     - bash: |
         echo "##vso[task.setvariable variable=sdkRepoUrl;]https://github.com/Azure/azure-sdk-for-js.git"
-      displayName: set js sdk repo
+      displayName: Set js sdk repo
   - ${{ elseif eq(parameters.sdk, 'java') }}:
     - bash: |
         echo "##vso[task.setvariable variable=sdkRepoUrl;]https://github.com/Azure/azure-sdk-for-java.git"
-      displayName: set java sdk repo
+      displayName: Set java sdk repo
   - ${{ elseif eq(parameters.sdk, 'go') }}:
     - bash: |
         echo "##vso[task.setvariable variable=sdkRepoUrl;]https://github.com/Azure/azure-sdk-for-go.git"
-      displayName: set go sdk repo
+      displayName: Set go sdk repo
   - ${{ elseif eq(parameters.sdk, 'net') }}:
     - bash: |
         echo "##vso[task.setvariable variable=sdkRepoUrl;]https://github.com/Azure/azure-sdk-for-net.git"
-      displayName: set net sdk repo
+      displayName: Set net sdk repo
   - ${{ elseif eq(parameters.sdk, 'python') }}:
     - bash: |
         echo "##vso[task.setvariable variable=sdkRepoUrl;]https://github.com/Azure/azure-sdk-for-python.git"
-      displayName: set python sdk repo
+      displayName: Set python sdk repo
   - ${{ else }}:
     - bash: |
         exit 1
-      displayName: set sdk repo
+      displayName: Set sdk repo
