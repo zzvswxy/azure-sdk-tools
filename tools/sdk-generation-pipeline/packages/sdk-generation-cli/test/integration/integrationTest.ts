@@ -33,20 +33,25 @@ async function prepareRepo(currentPath: string, repoName: string) {
         stdio: 'inherit'
     });
 
-    if (!!repoCommitId[repoName] && execSync(`git rev-parse HEAD`, {
-        encoding: 'utf-8',
-        cwd: path.join(tmpFolder, repoName)
-    }).trim() !== repoCommitId[repoName]) {
+    if (
+        !!repoCommitId[repoName] &&
+        execSync(`git rev-parse HEAD`, {
+            encoding: 'utf-8',
+            cwd: path.join(tmpFolder, repoName)
+        }).trim() !== repoCommitId[repoName]
+    ) {
         execSync(`git checkout ${repoCommitId[repoName]}`, {
             cwd: path.join(tmpFolder, repoName),
             stdio: 'inherit'
         });
     }
 
-    if (execSync(`git rev-parse --abbrev-ref HEAD`, {
-        encoding: 'utf-8',
-        cwd: path.join(tmpFolder, repoName)
-    }).trim() !== integrationBranch) {
+    if (
+        execSync(`git rev-parse --abbrev-ref HEAD`, {
+            encoding: 'utf-8',
+            cwd: path.join(tmpFolder, repoName)
+        }).trim() !== integrationBranch
+    ) {
         execSync(`git switch -c ${integrationBranch}`, {
             cwd: path.join(tmpFolder, repoName),
             stdio: 'inherit'
@@ -57,9 +62,15 @@ async function prepareRepo(currentPath: string, repoName: string) {
 async function runDocker(currentPath: string, sdkRepoName: string, dockerImage: string) {
     const tmpFolder = path.join(currentPath, 'tmp');
     // eslint-disable-next-line max-len
-    execSync(`docker run -v ${path.join(tmpFolder, 'azure-rest-api-specs')}:/spec-repo -v ${path.join(tmpFolder, sdkRepoName)}:/sdk-repo ${dockerImage} --readme=specification/agrifood/resource-manager/readme.md`, {
-        stdio: 'inherit'
-    });
+    execSync(
+        `docker run -v ${path.join(tmpFolder, 'azure-rest-api-specs')}:/spec-repo -v ${path.join(
+            tmpFolder,
+            sdkRepoName
+        )}:/sdk-repo ${dockerImage} --readme=specification/agrifood/resource-manager/readme.md`,
+        {
+            stdio: 'inherit'
+        }
+    );
 }
 
 async function buildDockImage(rushCwd: string, dockerCwd: string) {
@@ -80,7 +91,9 @@ export async function main(options: any) {
         options['docker-image'] = defaultImageName;
     }
     if (!options['sdk-repo']) {
-        options['sdk-repo'] = Object.keys(repoCommitId).filter((ele) => ele !== 'azure-rest-api-specs').join(',');
+        options['sdk-repo'] = Object.keys(repoCommitId)
+            .filter((ele) => ele !== 'azure-rest-api-specs')
+            .join(',');
     }
     await prepareRepo(currentPath, 'azure-rest-api-specs');
     for (const sdkRepo of options['sdk-repo'].split(',')) {

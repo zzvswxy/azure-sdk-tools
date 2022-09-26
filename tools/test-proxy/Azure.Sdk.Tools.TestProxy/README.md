@@ -120,7 +120,7 @@ To ensure that your local copy is up to date, run:
 
 ## Command line arguments
 
-This is the help information for test-proxy. It uses the pre-release package [`System.CommandLine.DragonFruit`](https://github.com/dotnet/command-line-api) to parse arguments.
+This is the help information for test-proxy. It uses the nuget package [`CommandLineParser`](https://www.nuget.org/packages/CommandLineParser) to parse arguments.
 
 ```text
 Azure.Sdk.Tools.TestProxy
@@ -493,6 +493,9 @@ The test-proxy offers further customization beyond that offered by sanitizers, m
       ],
       // used specifically so that an SSL connection presenting a non-standard certificate can still be validated
       "TLSValidationCert": "<public key portion of TLS cert>",
+      // if not provided, the TLS Validation validation callbacks will be used for all targeted hosts
+      // if provided, only requests to the hostname contained herein will be validated against the cert present in TLSValidationCert
+      "TLSValidationCertHost": "<hostname for the targeted resource associated with TLS Cert>",
    }
 }
 ```
